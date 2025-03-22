@@ -1,8 +1,7 @@
 <script lang="ts" setup>
-import { defineProps, defineEmits } from 'vue';
+import { defineEmits } from 'vue';
 import type { WorkerOption } from '@/types';
-
-const props = defineProps<{ sliders: WorkerOption[] }>()
+defineProps<{ sliders: WorkerOption[] }>()
 
 const emit = defineEmits<{
   (event: 'params-update'): void,
