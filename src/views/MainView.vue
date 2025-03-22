@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { provide, reactive, ref, computed } from "vue";
+import { provide, reactive, ref, computed, watch } from "vue";
 import type { Reactive } from "vue";
 import type { SourceTabs, WorkerOption, Config } from "@/types";
+import { useDebounceFn } from '@vueuse/core'
+import { setupWebGL, processImageWithWebGL } from '@/utils/webgl'
 
 const debugMode = ref(false)
 
@@ -18,6 +20,9 @@ const config: Reactive<Config> = reactive({
   mode: 'cmyk',
   algo: null
 })
+
+// Кеш параметров для каждого алгоритма
+const algorithmsCache = reactive<Record<string, Record<string, string | number | boolean>>>({})
 
 provide('config', config)
 
@@ -55,11 +60,19 @@ const colorChannelCanvases = {
   y: document.createElement("canvas"),
   k: document.createElement("canvas")
 }
+
+const webglCanvases = {
+  c: document.createElement("canvas"),
+  m: document.createElement("canvas"),
+  y: document.createElement("canvas"),
+  k: document.createElement("canvas")
+}
+
 const colorChannelCtxs = {
-  c: colorChannelCanvases.c.getContext('2d'),
-  m: colorChannelCanvases.m.getContext('2d'),
-  y: colorChannelCanvases.y.getContext('2d'),
-  k: colorChannelCanvases.k.getContext('2d')
+  c: colorChannelCanvases.c.getContext('2d', { willReadFrequently: true }),
+  m: colorChannelCanvases.m.getContext('2d', { willReadFrequently: true }),
+  y: colorChannelCanvases.y.getContext('2d', { willReadFrequently: true }),
+  k: colorChannelCanvases.k.getContext('2d', { willReadFrequently: true })
 }
 
 const svgPaths = reactive<{ c: null | string, m: null | string, y: null | string, k: null | string }>({
@@ -71,57 +84,206 @@ const svgPaths = reactive<{ c: null | string, m: null | string, y: null | string
 
 let webWorker: Worker | null = null
 
-const algoCachedConfig: Record<string, string | number | boolean> = {};
+const algoCachedConfig = reactive<Record<string, string | number | boolean>>({});
 const algoControls = ref<WorkerOption[]>([])
+
+const webglContexts = reactive({
+  c: null as null | ReturnType<typeof setupWebGL>,
+  m: null as null | ReturnType<typeof setupWebGL>,
+  y: null as null | ReturnType<typeof setupWebGL>,
+  k: null as null | ReturnType<typeof setupWebGL>
+})
+
+const initWebGL = () => {
+  webglContexts.c = setupWebGL(webglCanvases.c)
+  webglContexts.m = setupWebGL(webglCanvases.m)
+  webglContexts.y = setupWebGL(webglCanvases.y)
+  webglContexts.k = setupWebGL(webglCanvases.k)
+}
+
+const debouncedProcessImage = useDebounceFn((imgData?: ImageData) => {
+  loading.value = true
+
+  // Устанавливаем размеры для всех канвасов
+  const setCanvasSize = (canvas: HTMLCanvasElement) => {
+    canvas.width = canvasSize.value.width
+    canvas.height = canvasSize.value.height
+  }
+
+  setCanvasSize(colorChannelCanvases.c)
+  setCanvasSize(colorChannelCanvases.m)
+  setCanvasSize(colorChannelCanvases.y)
+  setCanvasSize(colorChannelCanvases.k)
+  setCanvasSize(webglCanvases.c)
+  setCanvasSize(webglCanvases.m)
+  setCanvasSize(webglCanvases.y)
+  setCanvasSize(webglCanvases.k)
+
+  if (!webglContexts.c) {
+    initWebGL()
+  }
+
+  if (debugMode.value) {
+    const debug = document.body.querySelector('#debug')
+    debug?.append(colorChannelCanvases.c)
+    debug?.append(colorChannelCanvases.m)
+    debug?.append(colorChannelCanvases.y)
+    debug?.append(colorChannelCanvases.k)
+  }
+
+  if (imgData) {
+    config.imgData = imgData
+  }
+
+  if (!config.imgData) {
+    console.error('No image data available');
+    loading.value = false;
+    return;
+  }
+
+  // Создаем временный канвас для исходного изображения
+  const sourceCanvas = document.createElement('canvas')
+  sourceCanvas.width = canvasSize.value.width
+  sourceCanvas.height = canvasSize.value.height
+  const sourceCtx = sourceCanvas.getContext('2d', { willReadFrequently: true })
+  if (sourceCtx && config.imgData) {
+    sourceCtx.putImageData(config.imgData, 0, 0)
+
+    // Обрабатываем каждый канал через WebGL
+    if (webglContexts.c) {
+      processImageWithWebGL(webglContexts.c.gl, webglContexts.c.program, webglContexts.c.locations, webglContexts.c.buffers, sourceCanvas, 0)
+      colorChannelCtxs.c?.drawImage(webglCanvases.c, 0, 0)
+    }
+    if (webglContexts.m) {
+      processImageWithWebGL(webglContexts.m.gl, webglContexts.m.program, webglContexts.m.locations, webglContexts.m.buffers, sourceCanvas, 1)
+      colorChannelCtxs.m?.drawImage(webglCanvases.m, 0, 0)
+    }
+    if (webglContexts.y) {
+      processImageWithWebGL(webglContexts.y.gl, webglContexts.y.program, webglContexts.y.locations, webglContexts.y.buffers, sourceCanvas, 2)
+      colorChannelCtxs.y?.drawImage(webglCanvases.y, 0, 0)
+    }
+    if (webglContexts.k) {
+      processImageWithWebGL(webglContexts.k.gl, webglContexts.k.program, webglContexts.k.locations, webglContexts.k.buffers, sourceCanvas, 3)
+      colorChannelCtxs.k?.drawImage(webglCanvases.k, 0, 0)
+    }
+  }
+
+  if (!config.algo) {
+    loadWorker(config.algo);
+    return;
+  }
+
+  const currentAlgoCache = algorithmsCache[config.algo] || {};
+  colorSelector.value = 'c';
+
+  // Получаем ImageData и проверяем его корректность
+  const imageData = colorChannelCtxs.c?.getImageData(0, 0, canvasSize.value.width, canvasSize.value.height);
+  if (!imageData || !imageData.data || !imageData.width || !imageData.height) {
+    console.error('Failed to get valid ImageData from canvas');
+    loading.value = false;
+    return;
+  }
+
+  sendToWorker([
+    { ...currentAlgoCache, width: canvasSize.value.width, height: canvasSize.value.height },
+    imageData
+  ]);
+}, 150)
+
 const processAlgoParameters = (workerOptions: [WorkerOption]) => {
-  algoControls.value = []
+  console.log('%cProcessing algo parameters', 'color: green; font-weight: bold', workerOptions);
+  const newControls: WorkerOption[] = [];
+
+  // Инициализируем кеш для текущего алгоритма, если его нет
+  if (config.algo && !algorithmsCache[config.algo]) {
+    algorithmsCache[config.algo] = {}
+  }
+
+  const currentAlgoCache = config.algo ? algorithmsCache[config.algo] : {}
+
   for (const option of workerOptions) {
-    option.type = option.type ?? 'range'
-    if (option.type !== 'checkbox') {
-      if (algoCachedConfig[option.label]) {
-        if (typeof algoCachedConfig[option.label] === 'number' &&
-          typeof option.value === 'number' ||
-          typeof algoCachedConfig[option.label] === 'string' &&
-          typeof option.value === 'string'
+    const newOption = reactive({ ...option });
+    newOption.type = newOption.type ?? 'range';
+    if (newOption.type !== 'checkbox') {
+      if (currentAlgoCache[newOption.label] !== undefined) {
+        console.log(`%cUsing cached value for ${newOption.label}`, 'color: purple', currentAlgoCache[newOption.label]);
+        if (typeof currentAlgoCache[newOption.label] === 'number' &&
+          typeof newOption.value === 'number' ||
+          typeof currentAlgoCache[newOption.label] === 'string' &&
+          typeof newOption.value === 'string'
         ) {
-          option.value = algoCachedConfig[option.label] as string | number
+          newOption.value = currentAlgoCache[newOption.label] as string | number;
         }
       } else {
-        algoCachedConfig[option.label] = option.value
+        console.log(`%cSetting initial value for ${newOption.label}`, 'color: orange', newOption.value);
+        if (config.algo) {
+          currentAlgoCache[newOption.label] = newOption.value;
+        }
       }
     } else {
-      if (algoCachedConfig[option.label]) {
-        option.checked = (algoCachedConfig[option.label] ?? option.checked ?? false) as boolean
+      if (currentAlgoCache[newOption.label] !== undefined) {
+        newOption.checked = (currentAlgoCache[newOption.label] ?? newOption.checked ?? false) as boolean;
+      } else if (config.algo) {
+        currentAlgoCache[newOption.label] = newOption.checked ?? false;
       }
     }
-    algoControls.value.push(option)
+    newControls.push(newOption);
   }
+  algoControls.value = newControls;
+
+  // Добавляем отслеживание изменений для каждого параметра
+  algoControls.value.forEach(control => {
+    watch(() => control.value, (newValue) => {
+      console.log(`%cParameter ${control.label} changed to`, 'color: blue; font-weight: bold', newValue);
+      if (config.algo) {
+        algorithmsCache[config.algo][control.label] = newValue;
+      }
+    });
+    if (control.type === 'checkbox') {
+      watch(() => control.checked, (newValue) => {
+        console.log(`%cCheckbox ${control.label} changed to`, 'color: blue; font-weight: bold', newValue);
+        if (config.algo) {
+          algorithmsCache[config.algo][control.label] = newValue;
+        }
+      });
+    }
+  });
 }
 
 const loadWorker = (src: string | null) => {
+  console.log('%cLoading worker', 'color: purple; font-weight: bold', { src });
   if (!src) return
   loading.value = true
-  if (webWorker) webWorker.terminate()
+  if (webWorker) {
+    console.log('%cTerminating existing worker', 'color: red');
+    webWorker.terminate()
+  }
   webWorker = new Worker(`/workers/${src}`)
   workerMsg.value = ""
   webWorker.onmessage = (msg) => {
     const [type, data] = msg.data
+    console.log('%cWorker message', 'color: orange', { type, data });
     switch (type) {
       case 'sliders':
         loading.value = false
         if (src === config.algo) return
         config.algo = src;
         processAlgoParameters(data)
-        processImage();
+        // Запускаем обработку изображения после инициализации слайдеров
+        if (config.imgData) {
+          console.log('%cStarting initial image processing', 'color: green; font-weight: bold');
+          debouncedProcessImage();
+        }
         break
       case 'msg':
         workerMsg.value = data
         break
       case 'dbg':
-        console.log(data)
+        console.log('%cWorker debug', 'color: blue', data)
         break
       case 'svg-path':
-        const workerConfig = { ...algoCachedConfig, width: canvasSize.value.width, height: canvasSize.value.height }
+        const currentAlgoCache = config.algo ? algorithmsCache[config.algo] : {}
+        const workerConfig = { ...currentAlgoCache, width: canvasSize.value.width, height: canvasSize.value.height }
         if (colorSelector.value == 'c') {
           svgPaths.c = data.path
           colorSelector.value = 'm'
@@ -147,94 +309,37 @@ const loadWorker = (src: string | null) => {
 }
 
 const sendToWorker = (msg: [{ width: number, height: number }, ImageData | undefined]) => {
-  console.log(msg)
+  console.log('%cSending to worker', 'color: red; font-weight: bold', {
+    config: msg[0],
+    hasImageData: !!msg[1]
+  });
+
+  // Проверяем наличие и корректность ImageData
+  if (!msg[1] || !msg[1].data || !msg[1].width || !msg[1].height) {
+    console.error('Invalid ImageData:', msg[1]);
+    loading.value = false;
+    return;
+  }
+
+  // Проверяем корректность конфига
+  if (!msg[0] || typeof msg[0].width !== 'number' || typeof msg[0].height !== 'number') {
+    console.error('Invalid config:', msg[0]);
+    loading.value = false;
+    return;
+  }
+
   webWorker?.postMessage(msg)
 }
 
-const processImage = (imgData: ImageData | undefined = undefined) => {
-  // debugger
-  loading.value = true
-  colorChannelCanvases.c.width = canvasSize.value.width
-  colorChannelCanvases.m.width = canvasSize.value.width
-  colorChannelCanvases.y.width = canvasSize.value.width
-  colorChannelCanvases.k.width = canvasSize.value.width
-  colorChannelCanvases.c.height = canvasSize.value.height
-  colorChannelCanvases.m.height = canvasSize.value.height
-  colorChannelCanvases.y.height = canvasSize.value.height
-  colorChannelCanvases.k.height = canvasSize.value.height
-  if (debugMode.value) {
-    const debug = document.body.querySelector('#debug')
-    debug?.append(colorChannelCanvases.c)
-    debug?.append(colorChannelCanvases.m)
-    debug?.append(colorChannelCanvases.y)
-    debug?.append(colorChannelCanvases.k)
-  }
-  if (imgData) {
-    config.imgData = imgData
-  }
-  applyFilter(0, colorChannelCtxs.c)
-  applyFilter(1, colorChannelCtxs.m)
-  applyFilter(2, colorChannelCtxs.y)
-  applyFilter(3, colorChannelCtxs.k)
-
-  loadWorker(config.algo);
-  colorSelector.value = 'c';
-  sendToWorker([{ ...algoCachedConfig, width: canvasSize.value.width, height: canvasSize.value.height }, colorChannelCtxs.c?.getImageData(0, 0, canvasSize.value.width, canvasSize.value.height)]);
+const processImage = (imgData?: ImageData) => {
+  debouncedProcessImage(imgData)
 }
 
-const applyFilter = (channel: number, context: CanvasRenderingContext2D | null) => {
-
-  if (!context) return
-  let x, y, offset
-  let r, g, b, k, c, m, yl
-  const mod = context.createImageData(canvasSize.value.width, canvasSize.value.height)
-  for (x = 0; x < canvasSize.value.width; x++) {
-    for (y = 0; y < canvasSize.value.height; y++) {
-      offset = (canvasSize.value.width * y + x) * 4
-
-      if ((channel < 0) || (channel > 3)) {
-        mod.data[offset] = config.imgData!.data[offset]
-        mod.data[offset + 1] = config.imgData!.data[offset + 1]
-        mod.data[offset + 2] = config.imgData!.data[offset + 2]
-        mod.data[offset + 3] = config.imgData!.data[offset + 3]
-      }
-      else {
-        r = config.imgData!.data[offset] / 255
-        g = config.imgData!.data[offset + 1] / 255
-        b = config.imgData!.data[offset + 2] / 255
-        k = Math.min(1 - r, Math.min(1 - g, 1 - b))
-        if (k == 1) {
-          c = m = yl = 0
-        } else {
-          c = (1 - r - k) / (1 - k)
-          m = (1 - g - k) / (1 - k)
-          yl = (1 - b - k) / (1 - k)
-        }
-
-        if (channel == 3) {
-          mod.data[offset] = mod.data[offset + 1] = mod.data[offset + 2] = 255 - byteRange(k * 255);
-        } else {
-          mod.data[offset] = byteRange(c * 255);
-          mod.data[offset + 1] = byteRange(m * 255);
-          mod.data[offset + 2] = byteRange(yl * 255);
-
-          mod.data[offset] = mod.data[offset + 1] = mod.data[offset + 2] = 255 - mod.data[offset + channel];
-        }
-        mod.data[offset + 3] = 255;
-      }
-    }
+watch(algoCachedConfig, () => {
+  if (config.algo) {
+    debouncedProcessImage();
   }
-  context.putImageData(mod, 0, 0);
-}
-const byteRange = (a: number) => {
-  if (a > 255) {
-    a = 255
-  }
-  if (a < 0) {
-    a = 0
-  }
-  return Math.floor(a)
-}
+}, { deep: true });
 </script>
 
 <template>

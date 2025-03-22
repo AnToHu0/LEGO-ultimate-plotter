@@ -2,11 +2,23 @@
 import { defineProps, defineEmits } from 'vue';
 import type { WorkerOption } from '@/types';
 
-defineProps<{ sliders: WorkerOption[] }>()
+const props = defineProps<{ sliders: WorkerOption[] }>()
 
 const emit = defineEmits<{
   (event: 'params-update'): void,
 }>()
+
+const handleChange = (item: WorkerOption) => {
+  if (item.type === 'range' && typeof item.value === 'string') {
+    item.value = parseFloat(item.value) || 0;
+  }
+  console.log('%cSlider changed', 'color: orange; font-weight: bold', {
+    label: item.label,
+    value: item.type === 'checkbox' ? item.checked : item.value,
+    type: typeof item.value
+  });
+  emit('params-update')
+}
 
 </script>
 
@@ -18,7 +30,7 @@ const emit = defineEmits<{
           v-if="item.type === 'checkbox'"
           type="checkbox"
           v-model="item.checked"
-          @change="emit('params-update')"
+          @change="handleChange(item)"
           >
         {{ item.label }}
       </label>
@@ -27,16 +39,16 @@ const emit = defineEmits<{
         :min="item.min"
         :max="item.max"
         :step='item.step || 1'
-        v-model='item.value'
+        v-model.number='item.value'
         type="range"
-        @change="emit('params-update')"
+        @input="handleChange(item)"
         >
       <input
         v-if="item.type === 'range'"
-        v-model="item.value"
+        v-model.number="item.value"
         type="text"
         pattern="-?[0-9]+.?[0-9]*"
-        @input="emit('params-update')"
+        @input="handleChange(item)"
         >
     </div>
   </div>

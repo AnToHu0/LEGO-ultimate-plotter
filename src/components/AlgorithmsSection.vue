@@ -58,10 +58,6 @@ const algorithms = [
     name: 'Implode'
   },
   {
-    script: 'halftone.js',
-    name: 'Halftone'
-  },
-  {
     script: 'boxes.js',
     name: 'Boxes'
   },
