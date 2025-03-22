@@ -1,39 +1,46 @@
-# plotter-time
+# LEGO Plotter
 
-This template should help get you started developing with Vue 3 in Vite.
+A web application for converting raster images to vector SVG for LEGO plotter. Uses WebGL for fast CMYK channel processing and web workers for SVG path generation.
 
-## Recommended IDE Setup
+## Technologies
 
-[VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+- Vue 3
+- WebGL for CMYK processing
+- Web Workers for SVG generation
+- TypeScript
 
-## Type Support for `.vue` Imports in TS
+## Installation
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
-
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
-
-## Project Setup
-
-```sh
+```bash
+# Install dependencies
 pnpm install
-```
 
-### Compile and Hot-Reload for Development
-
-```sh
+# Run development server
 pnpm dev
-```
 
-### Type-Check, Compile and Minify for Production
-
-```sh
+# Build for production
 pnpm build
 ```
 
-### Lint with [ESLint](https://eslint.org/)
+## Algorithms
 
-```sh
-pnpm lint
-```
+The application supports various algorithms for SVG path generation:
+
+- Dots
+- Halftone
+- Linedraw
+- Spiral
+- Waves
+- And more...
+
+## Features
+
+- Fast image processing using GPU via WebGL
+- CMYK channel separation
+- Customizable parameters for each algorithm
+- Real-time preview
+- Optimized performance using Web Workers
+
+## License
+
+MIT
