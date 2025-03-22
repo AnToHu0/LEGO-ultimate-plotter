@@ -50,6 +50,12 @@ const handleChange = (item: WorkerOption) => {
         pattern="-?[0-9]+.?[0-9]*"
         @input="handleChange(item)"
         >
+
+      <select v-if="item.type === 'select'" v-model="item.value" @change="handleChange(item)">
+        <option v-for="option in item.options" :key="option" :value="option">
+          {{ option }}
+        </option>
+      </select>
     </div>
   </div>
 </template>
@@ -76,6 +82,11 @@ const handleChange = (item: WorkerOption) => {
         cursor: pointer;
       }
     }
+    &:has(select) {
+      label {
+        flex: 0 1 auto;
+      }
+    }
     label {
       cursor: default;
       flex: 1 1 100%;
@@ -88,5 +99,9 @@ const handleChange = (item: WorkerOption) => {
       }
     }
   }
+}
+
+select {
+  color: @text;
 }
 </style>

@@ -26,10 +26,6 @@ const algorithms = [
     name: 'Sawtooth'
   },
   {
-    script: 'delaunay.js',
-    name: 'Delaunay'
-  },
-  {
     script: 'linedraw.js',
     name: 'Linedraw'
   },
