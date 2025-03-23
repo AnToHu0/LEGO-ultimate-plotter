@@ -1,0 +1,6 @@
+---
+description: 
+globs: *.vue
+alwaysApply: false
+---
+There's no need to import components manually cause we have autoimport everything from components directory. Only need is to export every component in index file.

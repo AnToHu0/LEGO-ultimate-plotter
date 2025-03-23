@@ -12,35 +12,62 @@ defaultControls = [
 
 function pixelProcessor(config, imagePixels) {
   console.log(config, imagePixels)
-  const width = parseInt(config.width);
-  const contrast = parseInt(config.Contrast);
-  const brightness = parseInt(config.Brightness);
-  const minBrightness = parseInt(config['Min brightness']);
-  const maxBrightness = parseInt(config['Max brightness']);
+  const width = parseInt(config.width) || 0;
+  const contrast = parseInt(config.Contrast) || 0;
+  const brightness = parseInt(config.Brightness) || 0;
+  const minBrightness = parseInt(config['Min brightness']) || 0;
+  const maxBrightness = parseInt(config['Max brightness']) || 255;
   const black = config.Inverted;
-  let contrastFactor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+
+  // Защита от деления на ноль
+  let contrastFactor = 1;
+  if (contrast !== 259) {
+    contrastFactor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+    // Проверка на валидность contrastFactor
+    if (isNaN(contrastFactor) || !isFinite(contrastFactor)) {
+      contrastFactor = 1;
+    }
+  }
 
   return function (x, y) {
+    try {
+      let b;
+      let pixIndex = Math.floor(x) + Math.floor(y) * width;
 
-    let b;
-    let pixIndex = Math.floor(x) + Math.floor(y) * width;
+      // Проверка на валидность индекса
+      if (pixIndex < 0 || pixIndex >= imagePixels.data.length / 4) {
+        return 0;
+      }
 
-    if (contrast !== 0) {
-      b = (0.2125 * ((contrastFactor * (imagePixels.data[4 * pixIndex] - 128) + 128) + brightness))
-        + (0.7154 * ((contrastFactor * (imagePixels.data[4 * pixIndex + 1] - 128) + 128) + brightness))
-        + (0.0721 * ((contrastFactor * (imagePixels.data[4 * pixIndex + 2] - 128) + 128) + brightness));
-    } else {
-      b = (0.2125 * (imagePixels.data[4 * pixIndex] + brightness))
-        + (0.7154 * (imagePixels.data[4 * pixIndex + 1] + brightness))
-        + (0.0721 * (imagePixels.data[4 * pixIndex + 2] + brightness));
+      if (contrast !== 0) {
+        b = (0.2125 * ((contrastFactor * (imagePixels.data[4 * pixIndex] - 128) + 128) + brightness))
+          + (0.7154 * ((contrastFactor * (imagePixels.data[4 * pixIndex + 1] - 128) + 128) + brightness))
+          + (0.0721 * ((contrastFactor * (imagePixels.data[4 * pixIndex + 2] - 128) + 128) + brightness));
+      } else {
+        b = (0.2125 * (imagePixels.data[4 * pixIndex] + brightness))
+          + (0.7154 * (imagePixels.data[4 * pixIndex + 1] + brightness))
+          + (0.0721 * (imagePixels.data[4 * pixIndex + 2] + brightness));
+      }
+
+      // Проверка на NaN
+      if (isNaN(b)) {
+        return 0;
+      }
+
+      if (black) {
+        b = Math.min(255 - minBrightness, 255 - b);
+      } else {
+        b = Math.max(minBrightness, b);
+      }
+
+      const result = Math.max(maxBrightness - b, 0);
+
+      // Финальная проверка на NaN
+      return isNaN(result) ? 0 : result;
+    } catch (error) {
+      console.error('Error in pixel processing:', error);
+      return 0;
     }
-    if (black) {
-      b = Math.min(255 - minBrightness, 255 - b);
-    } else {
-      b = Math.max(minBrightness, b);
-    }
-
-    return Math.max(maxBrightness - b, 0);
   }
 }
 
@@ -189,37 +216,80 @@ function autocontrast(pixData, cutoff) {
 
 // Nearest-neighbour TSP solution, good enough for simple plotting
 function sortlines(clines) {
-  let slines = [clines.pop()]
-  let last = slines[0][slines[0].length - 1]
+  // Проверка на пустые данные
+  if (!clines || !clines.length) {
+    return clines;
+  }
+
+  // Проверка, что массив содержит хотя бы один непустой подмассив
+  let hasValidLines = false;
+  for (let i = 0; i < clines.length; i++) {
+    if (clines[i] && clines[i].length) {
+      hasValidLines = true;
+      break;
+    }
+  }
+
+  if (!hasValidLines) {
+    return clines;
+  }
+
+  // Копируем массив, чтобы не изменять оригинал
+  let lines = [...clines];
+
+  // Находим непустой массив для начала
+  let startIdx = 0;
+  while (startIdx < lines.length && (!lines[startIdx] || !lines[startIdx].length)) {
+    startIdx++;
+  }
+
+  if (startIdx >= lines.length) {
+    return clines; // Не нашли непустых массивов
+  }
+
+  let slines = [lines.splice(startIdx, 1)[0]];
+  let last = slines[0][slines[0].length - 1];
 
   function distance(a, b) {
-    return (a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1])
+    return (a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1]);
   }
 
-  while (clines.length) {
-    let closest, min = 1e9, backwards = false
-    for (let j in clines) {
-      let d1 = distance(clines[j][0], last)
-      let d2 = distance(clines[j][clines[j].length - 1], last)
+  while (lines.length) {
+    let closest, min = 1e9, backwards = false;
+    for (let j in lines) {
+      if (!lines[j] || !lines[j].length) continue; // Пропускаем пустые массивы
+
+      let d1 = distance(lines[j][0], last);
+      let d2 = distance(lines[j][lines[j].length - 1], last);
       if (d1 < min) {
-        min = d1
-        closest = j
-        backwards = false
+        min = d1;
+        closest = j;
+        backwards = false;
       }
       if (d2 < min) {
-        min = d2
-        closest = j
-        backwards = true
+        min = d2;
+        closest = j;
+        backwards = true;
       }
     }
-    let l = clines.splice(closest, 1)[0]
-    if (backwards) {
-      l.reverse()
+
+    // Если не нашли ближайшую линию (все оставшиеся пустые)
+    if (closest === undefined) {
+      break;
     }
-    slines = slines.concat([l])
-    last = l[l.length - 1]
+
+    let l = lines.splice(closest, 1)[0];
+    if (backwards) {
+      l.reverse();
+    }
+    slines = slines.concat([l]);
+    last = l[l.length - 1];
   }
-  return slines
+
+  // Добавляем оставшиеся пустые массивы, если такие есть
+  slines = slines.concat(lines);
+
+  return slines;
 }
 
 
@@ -240,17 +310,31 @@ function animatePointList(output, speed) {
 
 
 function postLines(data) {
+  // Проверка на пустые данные
+  if (!data?.[0]?.[0]) {
+    postMessage(['svg-path', { path: "", raw: [] }]);
+    return;
+  }
+
   let pathstring = "";
   // either a list of points, or a list of lists of points
   if (typeof data[0][0] !== "object") data = [data]
 
+  // Дополнительная проверка после преобразования формата
+  if (!data[0] || !data[0].length) {
+    postMessage(['svg-path', { path: "", raw: [] }]);
+    return;
+  }
+
   if (data[0][0].x) {
     for (let p in data) {
+      if (!data[p] || !data[p].length) continue;
       pathstring += ' M' + data[p][0].x.toFixed(2) + ',' + data[p][0].y.toFixed(2);
       for (let i = 1; i < data[p].length; i++) pathstring += 'L' + data[p][i].x.toFixed(2) + ',' + data[p][i].y.toFixed(2);
     }
   } else {
     for (let p in data) {
+      if (!data[p] || !data[p].length) continue;
       pathstring += ' M' + data[p][0][0].toFixed(2) + ',' + data[p][0][1].toFixed(2);
       for (let i = 1; i < data[p].length; i++) pathstring += 'L' + data[p][i][0].toFixed(2) + ',' + data[p][i][1].toFixed(2);
     }
@@ -275,4 +359,143 @@ function postLines(data) {
 //   }
 //   postMessage(['svg-path', pathstring])
 // }
+
+// Функция для проверки корректности данных в imageData
+function validateImageData(imageData, expectedWidth, expectedHeight) {
+  const result = {
+    isValid: true,
+    errors: [],
+    warnings: [],
+    stats: {
+      totalPixels: 0,
+      nanValues: 0,
+      undefinedValues: 0,
+      nullValues: 0,
+      outOfRangeValues: 0,
+      min: 255,
+      max: 0,
+      average: 0
+    }
+  };
+
+  // Проверяем наличие объекта и его свойств
+  if (!imageData) {
+    result.isValid = false;
+    result.errors.push('imageData отсутствует (null или undefined)');
+    return result;
+  }
+
+  if (!imageData.data || !imageData.width || !imageData.height) {
+    result.isValid = false;
+    result.errors.push('imageData не содержит необходимых свойств (data, width, height)');
+    return result;
+  }
+
+  // Проверяем соответствие размеров
+  if (expectedWidth && imageData.width !== expectedWidth) {
+    result.warnings.push(`Ширина (${imageData.width}) не соответствует ожидаемой (${expectedWidth})`);
+  }
+
+  if (expectedHeight && imageData.height !== expectedHeight) {
+    result.warnings.push(`Высота (${imageData.height}) не соответствует ожидаемой (${expectedHeight})`);
+  }
+
+  // Проверяем длину массива данных
+  const expectedLength = imageData.width * imageData.height * 4;
+  if (imageData.data.length !== expectedLength) {
+    result.isValid = false;
+    result.errors.push(`Длина массива данных (${imageData.data.length}) не соответствует ожидаемой (${expectedLength})`);
+  }
+
+  // Проверяем корректность значений
+  let sum = 0;
+
+  for (let i = 0; i < imageData.data.length; i++) {
+    const value = imageData.data[i];
+
+    // Считаем только значения для яркости (R, G, B), пропускаем alpha
+    if (i % 4 < 3) {
+      result.stats.totalPixels++;
+
+      if (value === undefined) {
+        result.stats.undefinedValues++;
+        result.isValid = false;
+      } else if (value === null) {
+        result.stats.nullValues++;
+        result.isValid = false;
+      } else if (isNaN(value)) {
+        result.stats.nanValues++;
+        result.isValid = false;
+      } else if (value < 0 || value > 255) {
+        result.stats.outOfRangeValues++;
+        result.isValid = false;
+      } else {
+        // Обновляем статистику для валидных значений
+        sum += value;
+        if (value < result.stats.min) result.stats.min = value;
+        if (value > result.stats.max) result.stats.max = value;
+      }
+    }
+  }
+
+  // Вычисляем среднее значение
+  if (result.stats.totalPixels > 0) {
+    result.stats.average = sum / result.stats.totalPixels;
+  }
+
+  // Добавляем ошибки, если нашли некорректные значения
+  if (result.stats.nanValues > 0) {
+    result.errors.push(`Найдено ${result.stats.nanValues} значений NaN`);
+  }
+
+  if (result.stats.undefinedValues > 0) {
+    result.errors.push(`Найдено ${result.stats.undefinedValues} значений undefined`);
+  }
+
+  if (result.stats.nullValues > 0) {
+    result.errors.push(`Найдено ${result.stats.nullValues} значений null`);
+  }
+
+  if (result.stats.outOfRangeValues > 0) {
+    result.errors.push(`Найдено ${result.stats.outOfRangeValues} значений вне диапазона [0, 255]`);
+  }
+
+  return result;
+}
+
+// Применяем эту функцию к данным с камеры перед обработкой
+function sanitizeImageData(imageData) {
+  if (!imageData || !imageData.data) {
+    console.error('Получены некорректные данные изображения');
+    return null;
+  }
+
+  // Клонируем imageData, чтобы не изменять оригинал
+  const canvas = document.createElement('canvas');
+  canvas.width = imageData.width;
+  canvas.height = imageData.height;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+  if (!ctx) {
+    console.error('Не удалось создать контекст холста');
+    return null;
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+  const sanitizedData = ctx.getImageData(0, 0, imageData.width, imageData.height);
+
+  // Заменяем некорректные значения
+  for (let i = 0; i < sanitizedData.data.length; i++) {
+    if (sanitizedData.data[i] === null ||
+      sanitizedData.data[i] === undefined ||
+      isNaN(sanitizedData.data[i]) ||
+      sanitizedData.data[i] < 0 ||
+      sanitizedData.data[i] > 255) {
+      // Для R, G, B используем 0, для альфа-канала - 255
+      sanitizedData.data[i] = (i % 4 === 3) ? 255 : 0;
+    }
+  }
+
+  return sanitizedData;
+}
 

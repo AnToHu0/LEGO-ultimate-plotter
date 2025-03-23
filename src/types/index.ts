@@ -38,4 +38,4 @@ type RangeWorkerOption = CommonWorkerOption & {
 
 export type WorkerOption = CheckboxWorkerOption | RangeWorkerOption | SelectWorkerOption;
 
-export type SourceTabs = 'image' | 'webcam' | 'text'
+export type SourceTabs = 'image' | 'text' | 'webcam'

@@ -1,6 +1,5 @@
 
 import { createApp } from 'vue'
-import { createPinia } from 'pinia'
 
 import App from './App.vue'
 import router from './router'
@@ -17,7 +16,6 @@ for (const component in components) {
   app.component(component, components[component])
 }
 
-app.use(createPinia())
 app.use(router)
 
 app.mount('#app')

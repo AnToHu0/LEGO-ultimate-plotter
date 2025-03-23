@@ -1,10 +1,6 @@
-import SourceSelector from './SourceSelector.vue'
-import SelectorImage from './SelectorImage.vue'
-import AlgorithmsSection from './AlgorithmsSection.vue'
-import AlgorithmSliders from './AlgorithmSliders.vue'
-export {
-  AlgorithmsSection,
-  SourceSelector,
-  SelectorImage,
-  AlgorithmSliders
-}
+export { default as SourceSelector } from './SourceSelector.vue'
+export { default as SelectorImage } from './SelectorImage.vue'
+export { default as AlgorithmsSection } from './AlgorithmsSection.vue'
+export { default as AlgorithmSliders } from './AlgorithmSliders.vue'
+export { default as WebcamSource } from './WebcamSource.vue'
+

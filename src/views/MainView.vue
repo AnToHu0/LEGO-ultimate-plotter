@@ -8,7 +8,7 @@ import { setupWebGL, processImageWithWebGL } from '@/utils/webgl'
 const debugMode = ref(false)
 
 const config: Reactive<Config> = reactive({
-  defaultResolution: 600,
+  defaultResolution: 400,
   orientation: 'h',
   scale: 1,
   offset: {
@@ -350,16 +350,17 @@ watch(algoCachedConfig, () => {
         v-show="imageSource === 'image'"
         @image-data-ready="processImage"
         />
-      <AlgorithmsSection
-        v-if="['image', 'webcam'].includes(imageSource) && config.imgData"
-        @select-algo="loadWorker"
-        @change-color-mode="changeColorMode"
+      <WebcamSource v-if="imageSource === 'webcam'" @image-data-ready="processImage" />
+      <template v-if="['image', 'webcam'].includes(imageSource) && config.imgData">
+        <AlgorithmsSection
+          @select-algo="loadWorker"
+          @change-color-mode="changeColorMode"
         />
-      <AlgorithmSliders
-        v-if="config.imgData"
-        :sliders="algoControls"
-        @params-update="processImage"
+        <AlgorithmSliders
+          :sliders="algoControls"
+          @params-update="processImage"
         />
+      </template>
     </aside>
     <main :class="{ loading }">
       <div id="debug"></div>

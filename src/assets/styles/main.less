@@ -63,6 +63,7 @@ footer {
 }
 .line {
   display: flex;
+  align-items: center;
   gap: 1em;
   label {
     cursor: pointer;
@@ -76,7 +77,63 @@ footer {
   button {
     flex: 1 1 auto;
   }
+  &:has(select) {
+    flex-wrap: nowrap !important;
+  }
 }
 .flex {
   display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Глобальные стили для селектов */
+select {
+  max-width: 100%;
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid @borders;
+  border-radius: 4px;
+  background-color: #fff;
+  color: @text;
+  font-size: 14px;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath fill='%233C3C3C' d='M4.5 5.5l3.5 3.5 3.5-3.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 16px 16px;
+
+  &:hover {
+    border-color: darken(@borders, 10%);
+  }
+
+  &:focus {
+    border-color: @bg-dark;
+    box-shadow: 0 0 0 2px rgba(50, 63, 98, 0.1);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background-color: #f8f8f8;
+  }
+
+  option {
+    padding: 6px;
+  }
+}
+
+/* Стили для контейнеров селектов */
+.select-container {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Для случаев, когда селект внутри flex-контейнера */
+.line select,
+.flex select {
+  max-width: 100%;
 }

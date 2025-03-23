@@ -4,13 +4,13 @@
 
 importScripts('helpers.js')
 
-postMessage(['sliders', defaultControls.concat([
+postMessage(['sliders', [
   { label: 'Spacing', value: 5, min: 1, max: 20, step: 1 },
   { label: 'Threshold', value: 128, min: 0, max: 255, step: 1 },
   { label: 'Minlength', value: 1, min: 0, max: 32, step: 1 },
   { label: 'Alternate', type: 'checkbox', checked: false },
   { label: 'Direction', type: 'select', value: 'Horizontal', options: ['Horizontal', 'Vertical', 'Both'] },
-])]);
+]]);
 
 
 
@@ -27,6 +27,37 @@ onmessage = function (e) {
   // Image processor (gets a value for all pixels)
   const getPixel = pixelProcessor(config, pixData)
 
+  // Нормализация динамического диапазона
+  let min = 255;
+  let max = 0;
+
+  // Находим минимальное и максимальное значения
+  for (let y = 0; y < config.height; y++) {
+    for (let x = 0; x < config.width; x++) {
+      const val = getPixel(x, y);
+      if (!isNaN(val)) {
+        if (val < min) min = val;
+        if (val > max) max = val;
+      }
+    }
+  }
+
+  // Предотвращаем деление на ноль, если min=max
+  if (min === max) {
+    if (min < threshold) {
+      max = min + 1; // Все значения будут меньше порога
+    } else {
+      min = max - 1; // Все значения будут больше порога
+    }
+  }
+
+  // Функция для получения нормализованного значения пикселя
+  const getNormalizedPixel = function (x, y) {
+    const val = getPixel(x, y);
+    if (isNaN(val)) return 0;
+    return 255 * (val - min) / (max - min);
+  };
+
   // Create an empty array of points
   let points = [];
 
@@ -37,8 +68,7 @@ onmessage = function (e) {
       let mode = false
       let storex
       for (let x = 0; x <= config.width - 1; x += 1) {
-        pixelval = getPixel(x, y);
-        // console.log(pixelval)
+        pixelval = getNormalizedPixel(x, y);
         if (pixelval > threshold && mode == false) {
           // start line here
           storex = x
@@ -82,7 +112,7 @@ onmessage = function (e) {
       let mode = false
       let storey
       for (let y = 0; y <= config.height - 1; y += 1) {
-        pixelval = getPixel(x, y);
+        pixelval = getNormalizedPixel(x, y);
         if (pixelval > threshold && mode == false) {
           // start line here
           storey = y

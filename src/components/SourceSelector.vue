@@ -4,11 +4,15 @@ import type { SourceTabs } from '@/types/index'
 
 defineProps<{ modelValue: SourceTabs }>()
 
-const emit = defineEmits<{ (event: 'update:modelValue', source: SourceTabs): void }>()
+const emit = defineEmits<{
+  (event: 'update:modelValue', source: SourceTabs): void,
+  (event: 'image-data-ready', imgData: ImageData): void
+}>()
 
 const updateTab = (name: SourceTabs) => {
   emit('update:modelValue', name)
 }
+
 </script>
 
 <template>
