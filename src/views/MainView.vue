@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { provide, reactive, ref, computed, watch } from "vue";
 import type { Reactive } from "vue";
-import type { SourceTabs, WorkerOption, Config } from "@/types";
+import type { SourceTabs, WorkerOption, Config, TextConfig } from "@/types";
 import { useDebounceFn } from '@vueuse/core'
 import { setupWebGL, processImageWithWebGL } from '@/utils/webgl'
 
@@ -335,6 +335,12 @@ const processImage = (imgData?: ImageData) => {
   debouncedProcessImage(imgData)
 }
 
+const processText = (textConfig: TextConfig) => {
+  console.log('Text data received:', textConfig)
+  // Временно отключаем загрузку, так как отрисовка текста будет реализована позже
+  loading.value = false
+}
+
 watch(algoCachedConfig, () => {
   if (config.algo) {
     debouncedProcessImage();
@@ -351,6 +357,7 @@ watch(algoCachedConfig, () => {
         @image-data-ready="processImage"
         />
       <WebcamSource v-if="imageSource === 'webcam'" @image-data-ready="processImage" />
+      <TextSource v-if="imageSource === 'text'" @text-data-ready="processText" />
       <template v-if="['image', 'webcam'].includes(imageSource) && config.imgData">
         <AlgorithmsSection
           @select-algo="loadWorker"

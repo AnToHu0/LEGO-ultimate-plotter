@@ -39,3 +39,21 @@ type RangeWorkerOption = CommonWorkerOption & {
 export type WorkerOption = CheckboxWorkerOption | RangeWorkerOption | SelectWorkerOption;
 
 export type SourceTabs = 'image' | 'text' | 'webcam'
+
+export interface FontData {
+  meta: {
+    minSize: number
+    maxSize: number
+  }
+  characters: Record<string, number[][]>
+}
+
+export type TextAlignment = 'left' | 'center' | 'right'
+
+export interface TextConfig {
+  text: string
+  font: string
+  size: number
+  alignment: TextAlignment
+  fontData: FontData
+}
