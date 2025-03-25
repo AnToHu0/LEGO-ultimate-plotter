@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { ref, watch, defineEmits, inject } from "vue";
+import { ref, inject, watch } from 'vue';
 import type { Config } from "@/types";
 
 const config = inject<Config>('config')!

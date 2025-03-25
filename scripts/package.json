@@ -1,0 +1,7 @@
+{
+  "name": "font-scripts",
+  "version": "1.0.0",
+  "description": "Scripts for SVG font conversion",
+  "type": "module",
+  "private": true
+}

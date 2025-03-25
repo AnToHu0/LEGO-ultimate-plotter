@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { provide, reactive, ref, computed, watch } from "vue";
 import type { Reactive } from "vue";
-import type { SourceTabs, WorkerOption, Config, TextConfig } from "@/types";
+import type { SourceTabs, WorkerOption, Config } from "@/types";
 import { useDebounceFn } from '@vueuse/core'
 import { setupWebGL, processImageWithWebGL } from '@/utils/webgl'
 
@@ -335,11 +335,25 @@ const processImage = (imgData?: ImageData) => {
   debouncedProcessImage(imgData)
 }
 
-const processText = (textConfig: TextConfig) => {
-  console.log('Text data received:', textConfig)
-  // Временно отключаем загрузку, так как отрисовка текста будет реализована позже
+const processText = (textData: { path: string | null, isError: boolean }) => {
+  console.log('Text SVG path received:', textData)
+
+  // Очистка всех каналов
+  svgPaths.c = null
+  svgPaths.m = null
+  svgPaths.y = null
+
+  // Установка пути в черный канал
+  svgPaths.k = textData.path
+
+  // Обновляем флаг ошибки (для стилизации границы холста)
+  isCanvasError.value = textData.isError
+
+  // Отключаем индикатор загрузки
   loading.value = false
 }
+
+const isCanvasError = ref(false)
 
 watch(algoCachedConfig, () => {
   if (config.algo) {
@@ -376,6 +390,7 @@ watch(algoCachedConfig, () => {
         :width="canvasSize.width"
         :height="canvasSize.height"
         :viewBox="`0 0 ${canvasSize.width} ${canvasSize.height}`"
+        :class="{ error: isCanvasError }"
         >
         <path
           id="black"
@@ -409,6 +424,14 @@ watch(algoCachedConfig, () => {
   &>* {
     width: 200px;
     aspect-ratio: 1.4142;
+  }
+}
+svg {
+  border: 1px solid @borders;
+  margin: 20px;
+
+  &.error {
+    border: 2px solid red;
   }
 }
 #plotter-config {

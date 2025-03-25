@@ -1,5 +1,4 @@
 <script lang="ts" setup>
-import { defineEmits } from 'vue';
 import type { WorkerOption } from '@/types';
 defineProps<{ sliders: WorkerOption[] }>()
 
@@ -75,10 +74,16 @@ const handleChange = (item: WorkerOption) => {
         padding: 2px;
         text-align: center;
         color: @text;
+        flex: 0 1 auto;
       }
       &[type=range],
       &[type=checkbox] {
         cursor: pointer;
+      }
+      &[type=range] {
+        margin: 7px 0;
+        max-width: calc(100% - 70px);
+        flex: 0 1 auto;
       }
     }
     &:has(select) {
