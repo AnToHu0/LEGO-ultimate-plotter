@@ -171,6 +171,15 @@ const loadFontData = async (fontName: string) => {
     if (fontSize.value < minSize) fontSize.value = minSize
     if (fontSize.value > maxSize) fontSize.value = maxSize
 
+    // Устанавливаем множители в соответствии с метаданными шрифта
+    letterSpacingMultiplier.value = fontData.value.meta.letterSpacing || 0.3
+    lineHeightMultiplier.value = fontData.value.meta.lineHeight || 1.5
+
+    // Если шрифт не поддерживает гуманизацию, устанавливаем значение в 0
+    if (fontData.value.meta.humanizeable === false) {
+      humanisation.value = 0
+    }
+
     generateSvgPath()
   } catch (error) {
     console.error(`Error loading font data ${fontName}:`, error)

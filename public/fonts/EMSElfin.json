@@ -2,11 +2,11 @@
   "meta": {
     "minSize": 8,
     "maxSize": 72,
-    "letterSpacing": 0.3,
-    "lineHeight": 1.5,
+    "letterSpacing": 0.05,
+    "lineHeight": 1.13,
     "spaceWidth": 3,
     "lowercaseScale": 1,
-    "humanizeable": false
+    "humanizeable": true
   },
   "characters": {
     "0": [
