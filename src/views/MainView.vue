@@ -385,34 +385,36 @@ watch(algoCachedConfig, () => {
     </aside>
     <main :class="{ loading }">
       <div id="debug"></div>
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        :width="canvasSize.width"
-        :height="canvasSize.height"
-        :viewBox="`0 0 ${canvasSize.width} ${canvasSize.height}`"
-        :class="{ error: isCanvasError }"
-        >
-        <path
-          id="black"
-          style="stroke: black; stroke-width:0.2mm; fill:none;"
-          :d="svgPaths.k?.toString()" />
-        <path
-          v-show="config.mode === 'cmyk'"
-          id="cyan"
-          style="stroke: cyan; stroke-width:0.2mm; fill:none;"
-          transform="translate(1,1)"
-          :d="svgPaths.c?.toString()" />
-        <path
-          v-show="config.mode === 'cmyk'"
-          id="magenta" style="stroke: magenta; stroke-width:0.2mm; fill:none;"
-          transform="translate(2,2)"
-          :d="svgPaths.m?.toString()" />
-        <path
-          v-show="config.mode === 'cmyk'"
-          id="yellow" style="stroke: yellow; stroke-width:0.2mm; fill:none;"
-          transform="translate(3,3)"
-          :d="svgPaths.y?.toString()" />
-      </svg>
+      <div class="svg-wrapper" :style="{ '--canvas-height': canvasSize.height + 'px' }">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          :width="canvasSize.width"
+          :height="canvasSize.height"
+          :viewBox="`0 0 ${canvasSize.width} ${canvasSize.height}`"
+          :class="{ error: isCanvasError }"
+          >
+          <path
+            id="black"
+            style="stroke: black; stroke-width:0.2mm; fill:none;"
+            :d="svgPaths.k?.toString()" />
+          <path
+            v-show="config.mode === 'cmyk'"
+            id="cyan"
+            style="stroke: cyan; stroke-width:0.2mm; fill:none;"
+            transform="translate(1,1)"
+            :d="svgPaths.c?.toString()" />
+          <path
+            v-show="config.mode === 'cmyk'"
+            id="magenta" style="stroke: magenta; stroke-width:0.2mm; fill:none;"
+            transform="translate(2,2)"
+            :d="svgPaths.m?.toString()" />
+          <path
+            v-show="config.mode === 'cmyk'"
+            id="yellow" style="stroke: yellow; stroke-width:0.2mm; fill:none;"
+            transform="translate(3,3)"
+            :d="svgPaths.y?.toString()" />
+        </svg>
+      </div>
       <div id="msgbox">{{ workerMsg }}</div>
     </main>
   </section>
@@ -432,6 +434,16 @@ svg {
 
   &.error {
     border: 2px solid red;
+  }
+}
+.svg-wrapper {
+  margin: 20px;
+  min-height: e(~"calc(var(--canvas-height) * 1.5)");
+
+  svg {
+    transform: scale(1.5);
+    transform-origin: top left;
+    margin: 0;
   }
 }
 #plotter-config {
