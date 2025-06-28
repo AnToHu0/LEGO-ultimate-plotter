@@ -4,6 +4,7 @@ import type { Reactive } from "vue";
 import type { SourceTabs, WorkerOption, Config } from "@/types";
 import { useDebounceFn } from '@vueuse/core'
 import { setupWebGL, processImageWithWebGL } from '@/utils/webgl'
+import LegoHubControl from '@/components/LegoHubControl.vue'
 
 const debugMode = ref(false)
 
@@ -417,6 +418,7 @@ watch(algoCachedConfig, () => {
       </div>
       <div id="msgbox">{{ workerMsg }}</div>
     </main>
+    <LegoHubControl />
   </section>
 </template>
 
@@ -448,7 +450,7 @@ svg {
 }
 #plotter-config {
   display: grid;
-  grid-template-columns: 270px 1fr;
+  grid-template-columns: 270px 1fr 270px;
   flex: 1 1 100%;
   aside {
     border-right: 1px solid @borders;

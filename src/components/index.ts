@@ -4,4 +4,7 @@ export { default as AlgorithmsSection } from './AlgorithmsSection.vue'
 export { default as AlgorithmSliders } from './AlgorithmSliders.vue'
 export { default as WebcamSource } from './WebcamSource.vue'
 export { default as TextSource } from './TextSource.vue'
+export { default as LegoHubControl } from './LegoHubControl.vue'
+export { default as ConnectionGuideModal } from './ConnectionGuideModal.vue'
+export { default as MotorControl } from './MotorControl.vue'
 

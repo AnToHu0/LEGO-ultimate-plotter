@@ -2,7 +2,7 @@
   "meta": {
     "minSize": 8,
     "maxSize": 72,
-    "letterSpacing": 0.1,
+    "letterSpacing": 0.06,
     "lineHeight": 1.05,
     "spaceWidth": 3,
     "lowercaseScale": 1,
